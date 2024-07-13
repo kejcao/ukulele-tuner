@@ -1,4 +1,5 @@
 import logo from './logo.svg';
+import ukulele from './ukulele.webp';
 import { useEffect, useState } from 'react';
 import './App.css';
 
@@ -16,7 +17,7 @@ function analyzeAudio(stream, setFrequency) {
   const frequencies = new Uint8Array(analyzer.frequencyBinCount);
 
   microphone.connect(analyzer);
-  analyzer.fftSize = 16384 * 2;
+  analyzer.fftSize = 32768;
 
   let count = 0;
   function analyze() {
@@ -64,7 +65,7 @@ function analyzeAudio(stream, setFrequency) {
 
 function display(frequency) {
   if (frequency === null) {
-    return detected ? "" : "Play any string to start tuning";
+    return detected ? "&nbsp;" : "Play any string to start tuning";
   }
   const n0 = Math.round(freq_to_number(frequency));
   return `${Math.round(frequency)} hZ    (${note_name(n0)})`;
@@ -94,17 +95,18 @@ function App() {
     })();
   }, []);
 
+        // <img className="ukulele" src={ukulele}></img>
+      // <img src={logo} className="App-logo" alt="logo" />
   return (
     <div className="App">
       <div className="background-container">
         <div className="background"></div>
       </div>
-      <img src={logo} className="App-logo" alt="logo" />
       <div className="midline"></div>
       <div className="pick-container">
-        <div style={{ marginLeft: error(frequency) }} className="pick"></div>
+          <div style={{ marginLeft: error(frequency) }} className="pick"></div>
+          <p dangerouslySetInnerHTML={{ __html: display(frequency)}}></p>
       </div>
-      <p>{ display(frequency) }</p>
     </div>
   );
 }

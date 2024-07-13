@@ -1,5 +1,10 @@
+body {
+  height: 100%;
+}
+
 .App {
   text-align: center;
+  height: 100%;
 }
 
 .App-logo {
@@ -53,7 +58,15 @@ p {
   width: 2px;
   height: 100%;
   background-color: rgba(255, 255, 255, 0.7);
-  z-index: 1;
+}
+
+.ukulele {
+  /* position: absolute; */
+  /* top: 0; */
+  /* z-index: 1; */
+  /* right: 26%; */
+  /* position: fixed; */
+  /* bottom: 0px; */
 }
 
 .background {
@@ -72,10 +85,14 @@ p {
 
 .pick-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
 .pick {
+  z-index: 1;
   transition: margin-left 300ms ease-in-out;
   width: 40px;
   height: 40px;
