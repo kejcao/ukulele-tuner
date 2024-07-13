@@ -7,8 +7,9 @@ const NOTE_NAMES = 'C C# D D# E F F# G G# A A# B'.split(' ');
 // https://newt.phys.unsw.edu.au/jw/notes.html
 const freq_to_number = (f) => 69 + 12 * Math.log2(f / 440.0);
 const note_name = (n) => NOTE_NAMES[n % 12] + Math.round(n / 12 - 1);
+let detected = false;
 
-function analyzeAudio(stream, setData) {
+function analyzeAudio(stream, setFrequency) {
   const audioContext = new window.AudioContext();
   const analyzer = audioContext.createAnalyser();
   const microphone = audioContext.createMediaStreamSource(stream);
@@ -47,32 +48,51 @@ function analyzeAudio(stream, setData) {
       // setData(`${Math.round(freq)} hZ    ${note_name(n0)} ±${(n - n0).toFixed(2)}`);
 
       if (slice[argmax] > 100) {
-        setData(`${Math.round(freq)} hZ    (${note_name(n0)})`);
+        detected = true;
+        setFrequency(Math.round(freq));
+        // setData(`${} hZ    (${note_name(n0)})`);
+        // setData();
       } else {
-        setData("nothing");
+        setFrequency(null);
+        // setData(`${} hZ    (${note_name(n0)})`);
+        // setData(detected ? "" :);
       }
     }
   }
   analyze();
 }
 
+function display(frequency) {
+  if (frequency === null) {
+    return detected ? "" : "Play any string to start tuning";
+  }
+  const n0 = Math.round(freq_to_number(frequency));
+  return `${Math.round(frequency)} hZ    (${note_name(n0)})`;
+}
+
+function error(frequency) {
+  // A string: 440 Hz
+  // E string: 329.63 Hz
+  // C string: 261.63 Hz
+  // G string: 392 Hz
+
+  let best = 0;
+  for (const f of [440, 329.63, 261.63, 392]) {
+    if (Math.abs(frequency - f) < Math.abs(frequency - best)) {
+      best = f;
+    }
+  }
+  return (frequency - best) * 10;
+}
+
 function App() {
-  const [frequencyData, setFrequencyData] = useState(null);
+  const [frequency, setFrequency] = useState(null);
 
   useEffect(() => {
     (async () => {
-      analyzeAudio(await navigator.mediaDevices.getUserMedia({ audio: true }), setFrequencyData);
+      analyzeAudio(await navigator.mediaDevices.getUserMedia({ audio: true }), setFrequency);
     })();
   }, []);
-
-  // <a
-  //   className="App-link"
-  //   href="https://reactjs.org"
-  //   target="_blank"
-  //   rel="noopener noreferrer"
-  // >
-  //   Learn More
-  // </a>
 
   return (
     <div className="App">
@@ -80,7 +100,11 @@ function App() {
         <div className="background"></div>
       </div>
       <img src={logo} className="App-logo" alt="logo" />
-      <p>{frequencyData}</p>
+      <div className="midline"></div>
+      <div className="pick-container">
+        <div style={{ marginLeft: error(frequency) }} className="pick"></div>
+      </div>
+      <p>{ display(frequency) }</p>
     </div>
   );
 }

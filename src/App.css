@@ -46,6 +46,16 @@ p {
   color: white;
 }
 
+.midline {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 1px);
+  width: 2px;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 1;
+}
+
 .background {
   z-index: -1;
   position: absolute;
@@ -58,4 +68,32 @@ p {
     repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(255, 255, 255, 0.1) 25px, rgba(255, 255, 255, 0.1) 26px);
   background-color: #000;
   animation: scrollBackground 60s linear infinite;
+}
+
+.pick-container {
+  display: flex;
+  justify-content: center;
+}
+
+.pick {
+  transition: margin-left 300ms ease-in-out;
+  width: 40px;
+  height: 40px;
+  background-color: #000;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  position: relative;
+}
+
+.pick::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid white;
 }
