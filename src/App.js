@@ -1,71 +1,64 @@
-import logo from './logo.svg';
-// import ukulele from './ukulele.webp';
 import { useEffect, useState } from 'react';
 import './App.css';
 
 const NOTE_NAMES = 'C C# D D# E F F# G G# A A# B'.split(' ');
 
 // https://newt.phys.unsw.edu.au/jw/notes.html
-const freq_to_number = (f) => 69 + 12 * Math.log2(f / 440.0);
-const note_name = (n) => NOTE_NAMES[n % 12] + Math.round(n / 12 - 1);
-let detected = false;
+const freqToNumber = (f) => 69 + 12 * Math.log2(f / 440.0);
+const noteName = (n) => NOTE_NAMES[n % 12] + Math.round(n / 12 - 1);
 
-function analyzeAudio(stream, setFrequency, setDone) {
+let showStartingMessage = true;
+
+function analyzeAudio(stream, setFrequency, setMatchedNote) {
   const audioContext = new window.AudioContext();
   const analyzer = audioContext.createAnalyser();
   const microphone = audioContext.createMediaStreamSource(stream);
   const frequencies = new Uint8Array(analyzer.frequencyBinCount);
 
-  let state = [null, 0];
+  let noteStreak = [null, 0];
 
   microphone.connect(analyzer);
   analyzer.fftSize = 16384;
 
-  let count = 0;
   function analyze() {
     requestAnimationFrame(analyze);
 
-    count += 1;
-    if (count == 6) {
-      count = 0;
+    analyzer.getByteFrequencyData(frequencies);
 
-      analyzer.getByteFrequencyData(frequencies);
+    // For example: 44'100 / 2048 = 21.53 hz per bin in FFT.
+    const HERTZ_PER_BIN = audioContext.sampleRate / analyzer.fftSize;
 
-      // For example: 44'100 / 2048 = 21.53 hz per bin in FFT.
-      const HERTZ_PER_BIN = audioContext.sampleRate / analyzer.fftSize;
+    // A4 string: 440.00 Hz
+    // C4 string: 261.63 Hz
+    //
+    // Only consider frequencies between lowest and highest string. ±4 bins
+    // for some wiggle room.
+    const lo = 261.63 / HERTZ_PER_BIN - 4
+    const hi = 440.00 / HERTZ_PER_BIN + 4;
 
-      // A4 string: 440.00 Hz
-      // C4 string: 261.63 Hz
-      //
-      // Only consider frequencies between lowest and highest string. ±4 bins
-      // for some wiggle room.
-      const lo = 261.63 / HERTZ_PER_BIN - 4
-      const hi = 440.00 / HERTZ_PER_BIN + 4;
+    const slice = frequencies.slice(lo, hi);
+    const argmax = slice.indexOf(Math.max(...slice));
+    const freq = (argmax + lo) * HERTZ_PER_BIN;
 
-      const slice = frequencies.slice(lo, hi);
-      const argmax = slice.indexOf(Math.max(...slice));
-      const freq = (argmax + lo) * HERTZ_PER_BIN;
+    if (slice[argmax] > 120) {
+      showStartingMessage = false;
+      setFrequency(Math.round(freq));
 
-      if (slice[argmax] > 100) {
-        detected = true;
-        setFrequency(Math.round(freq));
+      const [note, err] = error(freq);
 
-        const [note, err] = error(freq);
+      if (noteStreak == null) {
+        noteStreak = [note, 0];
+      }
 
-        if (state == null) {
-          state = [note, 0];
-        }
-
-        if (Math.abs(err) < 2 && state[0] == note) {
-          if (++state[1] == 7) {
-            setDone(state);
-          }
-        } else {
-          state = null;
+      if (Math.abs(err) < 2 && noteStreak[0] === note) {
+        if (++noteStreak[1] === 9) {
+          setMatchedNote(noteStreak);
         }
       } else {
-        setFrequency(null);
+        noteStreak = null;
       }
+    } else {
+      setFrequency(null);
     }
   }
   analyze();
@@ -73,10 +66,10 @@ function analyzeAudio(stream, setFrequency, setDone) {
 
 function display(frequency) {
   if (frequency === null) {
-    return detected ? "&nbsp;" : "Play any string to start tuning";
+    return showStartingMessage ? "Play any string to start tuning" : "&nbsp;";
   }
-  const n0 = Math.round(freq_to_number(frequency));
-  return `${Math.round(frequency)} hZ    (${note_name(n0)})`;
+  const n0 = Math.round(freqToNumber(frequency));
+  return `${Math.round(frequency)} hZ    (${noteName(n0)})`;
 }
 
 function error(frequency) {
@@ -99,28 +92,26 @@ function error(frequency) {
 
 function App() {
   const [frequency, setFrequency] = useState(null);
-  const [done, setDone] = useState(null);
+  const [matchedNote, setMatchedNote] = useState(null);
+
+  const successAudio = new Audio("/109663__grunz__success_low.wav")
 
   useEffect(() => {
     (async () => {
-      analyzeAudio(await navigator.mediaDevices.getUserMedia({ audio: true }), setFrequency, setDone);
+      analyzeAudio(await navigator.mediaDevices.getUserMedia({ audio: true }), setFrequency, setMatchedNote);
     })();
   }, []);
 
-  const audio = new Audio("/109663__grunz__success_low.wav")
-
-  let time = null;
   useEffect(() => {
-    console.log(done);
-    if (done != null) {
-      const [note, _] = done;
+    if (matchedNote !== null) {
+      const [note, _] = matchedNote;
       const e = document.querySelector(`.note-icon-${note + 1}`);
       if (!e.classList.contains('note-done')) {
-        audio.play();
+        successAudio.play();
         e.classList.add('note-done');
       }
     }
-  }, [done]);
+  }, [matchedNote]);
 
   return (
     <div className="App">
