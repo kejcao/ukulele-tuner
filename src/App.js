@@ -10,14 +10,16 @@ const freq_to_number = (f) => 69 + 12 * Math.log2(f / 440.0);
 const note_name = (n) => NOTE_NAMES[n % 12] + Math.round(n / 12 - 1);
 let detected = false;
 
-function analyzeAudio(stream, setFrequency) {
+function analyzeAudio(stream, setFrequency, setDone) {
   const audioContext = new window.AudioContext();
   const analyzer = audioContext.createAnalyser();
   const microphone = audioContext.createMediaStreamSource(stream);
   const frequencies = new Uint8Array(analyzer.frequencyBinCount);
 
+  let state = [null, 0];
+
   microphone.connect(analyzer);
-  analyzer.fftSize = 32768;
+  analyzer.fftSize = 16384;
 
   let count = 0;
   function analyze() {
@@ -44,19 +46,25 @@ function analyzeAudio(stream, setFrequency) {
       const argmax = slice.indexOf(Math.max(...slice));
       const freq = (argmax + lo) * HERTZ_PER_BIN;
 
-      const n = freq_to_number(freq);
-      const n0 = Math.round(n);
-      // setData(`${Math.round(freq)} hZ    ${note_name(n0)} ±${(n - n0).toFixed(2)}`);
-
       if (slice[argmax] > 100) {
         detected = true;
         setFrequency(Math.round(freq));
-        // setData(`${} hZ    (${note_name(n0)})`);
-        // setData();
+
+        const [note, err] = error(freq);
+
+        if (state == null) {
+          state = [note, 0];
+        }
+
+        if (Math.abs(err) < 2 && state[0] == note) {
+          if (++state[1] == 7) {
+            setDone(state);
+          }
+        } else {
+          state = null;
+        }
       } else {
         setFrequency(null);
-        // setData(`${} hZ    (${note_name(n0)})`);
-        // setData(detected ? "" :);
       }
     }
   }
@@ -77,35 +85,56 @@ function error(frequency) {
   // C string: 261.63 Hz
   // G string: 392 Hz
 
-  let best = 0;
-  for (const f of [440, 329.63, 261.63, 392]) {
-    if (Math.abs(frequency - f) < Math.abs(frequency - best)) {
-      best = f;
-    }
+  if (frequency == null) {
+    return [0, 0];
   }
-  return (frequency - best) * 10;
+
+  const notes = [392, 261.63, 329.63, 440];
+
+  const errors = notes.map(x => Math.abs(frequency - x));
+  let i = errors.indexOf(Math.min(...errors)); // find index that minimizes errors
+
+  return [i, frequency - notes[i]]
 }
 
 function App() {
   const [frequency, setFrequency] = useState(null);
+  const [done, setDone] = useState(null);
 
   useEffect(() => {
     (async () => {
-      analyzeAudio(await navigator.mediaDevices.getUserMedia({ audio: true }), setFrequency);
+      analyzeAudio(await navigator.mediaDevices.getUserMedia({ audio: true }), setFrequency, setDone);
     })();
   }, []);
 
-        // <img className="ukulele" src={ukulele}></img>
-      // <img src={logo} className="App-logo" alt="logo" />
+  const audio = new Audio("/109663__grunz__success_low.wav")
+
+  let time = null;
+  useEffect(() => {
+    console.log(done);
+    if (done != null) {
+      const [note, _] = done;
+      const e = document.querySelector(`.note-icon-${note + 1}`);
+      if (!e.classList.contains('note-done')) {
+        audio.play();
+        e.classList.add('note-done');
+      }
+    }
+  }, [done]);
+
   return (
     <div className="App">
       <div className="background-container">
         <div className="background"></div>
       </div>
+      <div className="note-icon note-icon-1">G</div>
+      <div className="note-icon note-icon-2">C</div>
+      <div className="note-icon note-icon-3">E</div>
+      <div className="note-icon note-icon-4">A</div>
       <div className="midline"></div>
       <div className="pick-container">
-          <div style={{ marginLeft: error(frequency) }} className="pick"></div>
-          <p dangerouslySetInnerHTML={{ __html: display(frequency)}}></p>
+        <div style={{ marginLeft: 10 * error(frequency)[1] }} className="pick"></div>
+        <p dangerouslySetInnerHTML={{ __html: display(frequency) }}></p>
       </div>
     </div>
   );
