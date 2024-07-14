@@ -1,5 +1,5 @@
 import logo from './logo.svg';
-import ukulele from './ukulele.webp';
+// import ukulele from './ukulele.webp';
 import { useEffect, useState } from 'react';
 import './App.css';
 
