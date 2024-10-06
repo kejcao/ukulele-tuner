@@ -18,23 +18,23 @@ function analyzeAudio(stream, setFrequency, setMatchedNote) {
   let noteStreak = [null, 0];
 
   microphone.connect(analyzer);
-  analyzer.fftSize = 16384;
+  analyzer.fftSize = 32768;
 
   function analyze() {
     requestAnimationFrame(analyze);
 
     analyzer.getByteFrequencyData(frequencies);
 
-    // For example: 44'100 / 2048 = 21.53 hz per bin in FFT.
+    // For example: 44100 / 32768 = 1.3458 hz per bin in FFT.
     const HERTZ_PER_BIN = audioContext.sampleRate / analyzer.fftSize;
 
     // A4 string: 440.00 Hz
     // C4 string: 261.63 Hz
     //
-    // Only consider frequencies between lowest and highest string. ±4 bins
+    // Only consider frequencies between lowest and highest string. ±8 bins
     // for some wiggle room.
-    const lo = 261.63 / HERTZ_PER_BIN - 4
-    const hi = 440.00 / HERTZ_PER_BIN + 4;
+    const lo = 261.63 / HERTZ_PER_BIN - 8
+    const hi = 440.00 / HERTZ_PER_BIN + 8;
 
     const slice = frequencies.slice(lo, hi);
     const argmax = slice.indexOf(Math.max(...slice));
@@ -51,7 +51,7 @@ function analyzeAudio(stream, setFrequency, setMatchedNote) {
       }
 
       if (Math.abs(err) < 2 && noteStreak[0] === note) {
-        if (++noteStreak[1] === 9) {
+        if (++noteStreak[1] === 16) {
           setMatchedNote(noteStreak);
         }
       } else {
@@ -124,7 +124,7 @@ function App() {
       <div className="note-icon note-icon-4">A</div>
       <div className="midline"></div>
       <div className="pick-container">
-        <div style={{ marginLeft: 10 * error(frequency)[1] }} className="pick"></div>
+        <div style={{ marginLeft: 16 * error(frequency)[1] }} className="pick"></div>
         <p dangerouslySetInnerHTML={{ __html: display(frequency) }}></p>
       </div>
     </div>
